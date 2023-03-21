@@ -28,8 +28,10 @@ void *thread1(void* dummy){
         printf("d");
         printf("!");
     }
-    if (thr != 0) {
-        pthread_cond_signal(&cond[thr - 1]);
+    if (thr == MAXTHREAD - 1) {
+        for (i = 0; i < MAXTHREAD - 1; ++i) {
+            pthread_cond_signal(&cond[i]);
+        }
     }
     pthread_mutex_unlock(&lock);
     return NULL;
