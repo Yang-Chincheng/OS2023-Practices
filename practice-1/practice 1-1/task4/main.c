@@ -4,15 +4,22 @@
 #include <stdlib.h>
 #define MAXTHREAD 10
 // declare cond_variable: you may define MAXTHREAD variables
-pthread_cond_t cond[MAXTHREAD];
+pthread_cond_t cond;
 pthread_mutex_t lock; 
+// flag that indicates whether Thr#9 has left its critical section
+int flag = 0;
+
 // ? Loc in thread1: you can do any modification here, but it should be less than 20 Locs
-void *thread1(void* dummy){
+void *thread1(void* dummy) {
     int i;
     int thr = *((int*)dummy);
     pthread_mutex_lock(&lock);
     if (thr != MAXTHREAD - 1) {
-        pthread_cond_wait(&cond[thr], &lock);
+        // need and only need to sleep if Thr#9 hasnt left its critical section 
+        // in this case WHILE can be replaced by IF
+        while (!flag) {
+            pthread_cond_wait(&cond, &lock);
+        }
     }
     printf("This is thread %d!\n", thr);
     for(i = 0; i < 20; ++i){
@@ -29,11 +36,14 @@ void *thread1(void* dummy){
         printf("!");
     }
     if (thr == MAXTHREAD - 1) {
-        for (i = 0; i < MAXTHREAD - 1; ++i) {
-            pthread_cond_signal(&cond[i]);
-        }
+        // set flag to 1 before lock is released 
+        flag = 1;
     }
     pthread_mutex_unlock(&lock);
+    if (thr == MAXTHREAD - 1) {
+        // awake all the sleeping threads 
+        pthread_cond_broadcast(&cond);
+    }
     return NULL;
 }
 
@@ -41,9 +51,7 @@ int main(){
     pthread_t pid[MAXTHREAD];
     int i;
     // ? Locs: initialize the cond_variables
-    for (i = 0; i < MAXTHREAD; ++i) {
-        pthread_cond_init(&cond[i], NULL);
-    }
+    pthread_cond_init(&cond, NULL);
     pthread_mutex_init(&lock, NULL);
     for(i = 0; i < MAXTHREAD; ++i){
         int* thr = (int*) malloc(sizeof(int)); 
