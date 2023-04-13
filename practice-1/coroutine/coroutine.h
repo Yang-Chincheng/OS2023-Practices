@@ -2,6 +2,20 @@
 #ifndef COROUTINE_H
 #define COROUTINE_H
 
+#define _GNU_SOURCE
+#define _POSIX_SOURCE
+#define _XOPEN_SOURCE 600 // for pthread rwlock
+
+#include <assert.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <signal.h>
+#include <ucontext.h>
+
+#undef _GNU_SOURCE
+#undef _POSIX_SOURCE
+#undef _XOPEN_SOURCE
+
 typedef long long cid_t;
 #define MAXN 10
 #define UNAUTHORIZED -1
