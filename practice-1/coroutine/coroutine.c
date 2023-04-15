@@ -21,22 +21,19 @@ typedef struct co_array_t {
     co_array_value_t *data;
 } co_array_t;
 
-co_array_t *co_array_create()
-{
+static co_array_t *co_array_create() {
     co_array_t *array = (co_array_t *)malloc(sizeof(co_array_t));
     array->len = 0, array->cap = 1;
     array->data =
         (co_array_value_t *)malloc(sizeof(co_array_value_t) * array->cap);
     return array;
 }
-void co_array_destroy(co_array_t *arr) { 
+static void co_array_destroy(co_array_t *arr) { 
     for (int i = 0; i < arr->len; ++i) free(arr->data[i]);
     free(arr->data), free(arr); 
 }
-void co_array_add(co_array_t *arr, co_array_value_t value)
-{
-    if (arr->len == arr->cap)
-    {
+static void co_array_add(co_array_t *arr, co_array_value_t value) {
+    if (arr->len == arr->cap) {
         arr->cap <<= 1;
         co_array_value_t *new =
             (co_array_value_t *)malloc(sizeof(co_array_value_t) * arr->cap);
@@ -103,8 +100,8 @@ struct co_scheduler_t {
         // list of routine information and its rwlock
 };
 
-co_lock_t _co_scheduler_lock = PTHREAD_RWLOCK_INITIALIZER;
-co_scheduler_t *_co_scheduler;
+static co_lock_t _co_scheduler_lock = PTHREAD_RWLOCK_INITIALIZER;
+static co_scheduler_t *_co_scheduler;
 
 #define _tinfo _co_scheduler->tinfo
 #define _tinfo_lock _co_scheduler->tinfo_lock
@@ -146,7 +143,7 @@ void co_scheduler_destroy() {
     UNLOCK(&_co_scheduler_lock);
 }
 
-co_meta_t* _co_getmeta() {
+static co_meta_t* _co_getmeta() {
     co_meta_t *ret = NULL;
     for (int i = 0; i < _tinfo->len; ++i) {
         co_meta_t *cur = co_array_get(_tinfo, i, co_meta_t*);
@@ -164,7 +161,7 @@ int co_getid() {
 }
 
 // a wrapper is needed to record the return values of routines 
-void _co_func_wrapper(co_struct_t *coro, co_func_t func) {
+static void _co_func_wrapper(co_struct_t *coro, co_func_t func) {
     co_ret_t ret = func();
 // printf("[dbg] finish cid %d\n", coro->cid);
 
@@ -249,7 +246,10 @@ int co_yield() {
     RDLOCK(&_tinfo_lock);
     // get metainfo for the current thread 
     co_meta_t *meta = _co_getmeta(); 
-    assert(meta != NULL);
+    if (meta == NULL) {
+        UNLOCK(&_tinfo_lock);
+        return 0;
+    }
     UNLOCK(&_tinfo_lock);
 
     ucontext_t *suspend_ucp, *resume_ucp;
