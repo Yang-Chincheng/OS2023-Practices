@@ -1,6 +1,6 @@
 #include "buddy.h"
 
-#include <stdio.h>
+// #include <stdio.h>
 
 typedef unsigned long int size_t; 
 typedef unsigned char uint8_t;
@@ -99,7 +99,7 @@ static uint32_t ptr_to_page(void *ptr) {
 int init_page(void *p, int pgcount) {
     base_ptr = p;
     rank_num = _log2(pgcount) + 1;
-printf("[dbg] rank number %d, page_num %d\n", rank_num, page_num);
+// printf("[dbg] rank number %d, page_num %d\n", rank_num, page_num);
     for (int i = 1; i <= rank_num; ++i) bucket[i] = NULL;
     for (int i = 1; i <= rank_num; ++i) count[i] = 0;
     for (int i = 0; i < pgcount; ++i) meta[i] = LIST_INITIALIZER;
@@ -162,13 +162,12 @@ int return_pages(void *p) {
 // printf("[dbg] page %d, rank %d\n", ptr_to_page(p), rank);
 // printf("[dbg] page %d, index %d\n", ptr_to_page(p), index);
     while (rank < rank_num) {
-// printf("[dbg] merging rank %d\n", rank);
         node = &meta[block_to_page(index, rank)];
         buddy = &meta[block_to_page(BUDDY(index), rank)];
 // printf("[dbg] node_page %d, buddy_page %d\n", 
     // block_to_page(index, rank), block_to_page(BUDDY(index), rank));
         
-        if (buddy->status != UNUSED) break;
+        if (buddy->rank != rank || buddy->status != UNUSED) break;
         node->status = buddy->status = UNDEF;
         list_remove(bucket[rank], buddy);
         count[rank]--;
@@ -197,14 +196,3 @@ int query_page_counts(int rank) {
     if (rank < 1 || rank > rank_num) return -EINVAL;
     return count[rank];
 }
-
-// int main() {
-//     int pgcount = 15;
-//     rank_num = _log2(pgcount) + 1;
-//     printf("rank_num %d, page_num %d\n", rank_num, page_num);
-//     for (int i = 0; i < page_num * 2 - 1; ++i) {
-//         int r = rank_num - _log2(i + 1);
-//         printf("[idx %d, rk %d] pa %d, lc %d, rc %d, bd %d, pg %d\n", 
-//             i, r, PARENT(i), CHILD(i, 0), CHILD(i, 1), BUDDY(i), block_to_page(i, r));
-//     }
-// }
