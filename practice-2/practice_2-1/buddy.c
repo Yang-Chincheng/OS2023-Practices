@@ -1,7 +1,5 @@
 #include "buddy.h"
 
-// #include <stdio.h>
-
 typedef unsigned long int size_t; 
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
@@ -25,6 +23,13 @@ typedef char bool;
 #define UNDEF 0
 #define UNUSED 1
 #define USED 2 
+
+#ifdef DEBUG
+    #include <stdio.h>
+    #define dbg_printf(...) printf(__VA_ARGS__)
+#else
+    #define dbg_printf(...)
+#endif
 
 typedef struct list_t list_t;
 
@@ -64,7 +69,14 @@ static uint32_t rank_num;
 
 static uint32_t count[MAX_RANK_NUM + 1];
 static list_t* bucket[MAX_RANK_NUM + 1];
-static list_t meta[MAX_PAGE_NUM];
+
+#define EMBEDDED_META 0
+#if EMBEDDED_META 
+    #define META(id) ((list_t*)(base_ptr + id * PAGE_SIZE))
+#else
+    static list_t meta[MAX_PAGE_NUM];
+    #define META(id) (&meta[(id)]) 
+#endif
 
 static uint8_t _log2(uint32_t num) {
     if (num == 0) return -1;
@@ -99,15 +111,19 @@ static uint32_t ptr_to_page(void *ptr) {
 int init_page(void *p, int pgcount) {
     base_ptr = p;
     rank_num = _log2(pgcount) + 1;
-// printf("[dbg] rank number %d, page_num %d\n", rank_num, page_num);
+    
+    dbg_printf("[dbg] rank number %d, page_num %d\n", rank_num, page_num);
+
     for (int i = 1; i <= rank_num; ++i) bucket[i] = NULL;
     for (int i = 1; i <= rank_num; ++i) count[i] = 0;
-    for (int i = 0; i < pgcount; ++i) meta[i] = LIST_INITIALIZER;
-    meta[0].status = UNUSED;
-    meta[0].rank = rank_num;
-    meta[0].index = ROOT;
-    list_push(bucket[rank_num], &meta[0]);
+    for (int i = 0; i < pgcount; ++i) *META(i) = LIST_INITIALIZER;
+
+    META(0)->status = UNUSED;
+    META(0)->rank = rank_num;
+    META(0)->index = ROOT;
+    list_push(bucket[rank_num], META(0));
     count[rank_num]++;
+
     return OK;
 }
 
@@ -131,8 +147,8 @@ void *alloc_pages(int rank) {
         split_rank--;
         uint32_t rchild = CHILD(block->index, 1);
         uint32_t lchild = CHILD(block->index, 0);
-        list_t *rmeta = &meta[block_to_page(rchild, split_rank)];
-        list_t *lmeta = &meta[block_to_page(lchild, split_rank)];
+        list_t *rmeta = META(block_to_page(rchild, split_rank));
+        list_t *lmeta = META(block_to_page(lchild, split_rank));
         
         *rmeta = (list_t) {UNUSED, split_rank, rchild, NULL, NULL};
         *lmeta = (list_t) {UNUSED, split_rank, lchild, NULL, NULL};
@@ -151,21 +167,28 @@ void *alloc_pages(int rank) {
 
 int return_pages(void *p) {
     list_t *node, *buddy;
-// printf("[dbg] offset 0x%x, validity %d\n", p - base_ptr, is_valid_ptr(p));
+    
+    dbg_printf("[dbg] offset 0x%x, validity %d\n", p - base_ptr, is_valid_ptr(p));
+
     if (!is_valid_ptr(p)) return -EINVAL;
-    node = &meta[ptr_to_page(p)];
-// printf("[dbg] page %d, status %d\n", ptr_to_page(p), meta->status);
+    node = META(ptr_to_page(p));
+    
+    dbg_printf("[dbg] page %d, status %d\n", ptr_to_page(p), meta->status);
+    
     if (node->status != USED) return -EINVAL;
     
     uint8_t rank = node->rank;
     uint32_t index = node->index;
-// printf("[dbg] page %d, rank %d\n", ptr_to_page(p), rank);
-// printf("[dbg] page %d, index %d\n", ptr_to_page(p), index);
+
+    dbg_printf("[dbg] page %d, rank %d\n", ptr_to_page(p), rank);
+    dbg_printf("[dbg] page %d, index %d\n", ptr_to_page(p), index);
+
     while (rank < rank_num) {
-        node = &meta[block_to_page(index, rank)];
-        buddy = &meta[block_to_page(BUDDY(index), rank)];
-// printf("[dbg] node_page %d, buddy_page %d\n", 
-    // block_to_page(index, rank), block_to_page(BUDDY(index), rank));
+        node = META(block_to_page(index, rank));
+        buddy = META(block_to_page(BUDDY(index), rank));
+
+        dbg_printf("[dbg] node_page %d, buddy_page %d\n", 
+            block_to_page(index, rank), block_to_page(BUDDY(index), rank));
         
         if (buddy->rank != rank || buddy->status != UNUSED) break;
         node->status = buddy->status = UNDEF;
@@ -176,7 +199,7 @@ int return_pages(void *p) {
         index = PARENT(index);
     }
 
-    node = &meta[block_to_page(index, rank)];
+    node = META(block_to_page(index, rank));
     node->status = UNUSED;
     node->rank = rank;
     node->index = index;
@@ -188,7 +211,7 @@ int return_pages(void *p) {
 
 int query_ranks(void *p) {
     if (!is_valid_ptr(p)) return -EINVAL;
-    list_t *node = &meta[ptr_to_page(p)];
+    list_t *node = META(ptr_to_page(p));
     return node->status != UNDEF? node->rank: -EINVAL;
 }
 
