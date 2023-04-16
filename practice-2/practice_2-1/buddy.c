@@ -72,7 +72,7 @@ static list_t* bucket[MAX_RANK_NUM + 1];
 
 #define EMBEDDED_META 0
 #if EMBEDDED_META 
-    #define META(id) ((list_t*)(base_ptr + id * PAGE_SIZE))
+    #define META(id) ((list_t*)(base_ptr + (id) * PAGE_SIZE))
 #else
     static list_t meta[MAX_PAGE_NUM];
     #define META(id) (&meta[(id)]) 
