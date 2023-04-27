@@ -17,10 +17,10 @@
 #undef _XOPEN_SOURCE
 
 typedef long long cid_t;
-#define MAXN 10
-#define UNAUTHORIZED -1
-#define FINISHED 2
-#define RUNNING 1
+#define MAXN (50000)
+#define UNAUTHORIZED (-1)
+#define FINISHED (2)
+#define RUNNING (1)
 
 int co_start(int (*routine)(void));
 int co_getid();
