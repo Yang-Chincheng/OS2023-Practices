@@ -10,6 +10,8 @@ pthread_mutex_t lock;
 int flag = 0;
 
 // ? Loc in thread1: you can do any modification here, but it should be less than 20 Locs
+// the following code ensures that Thr#9 executes before Thr#0 ~ Thr#8,
+// while Thr#0 ~ Thr#8 are executed in a random order
 void *thread1(void* dummy) {
     int i;
     int thr = *((int*)dummy);
@@ -36,6 +38,7 @@ void *thread1(void* dummy) {
         printf("!");
     }
     if (thr == MAXTHREAD - 1) {
+        // Thr#9 is leaving its critical section
         // set flag to 1 before lock is released 
         flag = 1;
     }
