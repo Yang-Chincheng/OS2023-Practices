@@ -81,11 +81,14 @@ typedef unsigned char uint8_t, byte_t;
 
 static void* heap_base;
 
-#define HDR_PTR(ptr) PTR_INCR(ptr, -WORD_SIZE)
+// header (4byte) + prev (4byte) + footer (4byte) + next (4byte)
+#define META_SIZE (4*WORD_SIZE)
+
+#define HDR_PTR(ptr) PTR_INCR(ptr, -2*WORD_SIZE)
 #define SIZE(ptr) UNZIP_SIZE(HDR_PTR(ptr))
 #define STAT(ptr) UNZIP_STAT(HDR_PTR(ptr))
-#define FTR_PTR(ptr) PTR_INCR(ptr, SIZE(ptr) - 2*WORD_SIZE)
-#define NEX_PTR(ptr) (ptr)
+#define FTR_PTR(ptr) PTR_INCR(ptr, SIZE(ptr) - 4*WORD_SIZE)
+#define NEX_PTR(ptr) PTR_INCR(ptr, -WORD_SIZE)
 #define PRE_PTR(ptr) PTR_INCR(ptr, SIZE(ptr) - 3*WORD_SIZE)
 
 #define LIST_NEXT(ptr) PTR_INCR(heap_base, GET(NEX_PTR(ptr)))
@@ -104,9 +107,7 @@ static int get_rank(word_t size) {
     return (MAX_BLK_BITS - MIN_BLK_BITS) / STP_BLK_BITS;
 }
 
-word_t border_offset;
-
-#define BDR_OFF (border_offset)
+#define BDR_OFF ALIGN((RANK_NUM + 2) * WORD_SIZE)
 #define PRO_BDR_PTR PTR_INCR(heap_base, BDR_OFF) 
 #define EPI_BDR_PTR PTR_INCR(mem_heap_hi(), 1)
 #define BUCK(rank) PTR_INCR(heap_base, (rank) * WORD_SIZE)
@@ -193,9 +194,7 @@ static void* find_fit(word_t size, int rank) {
  * mm_init - Called when a new trace starts.
  */
 int mm_init(void) {
-    border_offset = (RANK_NUM + 1) * WORD_SIZE;
-    if ((border_offset & 0x07) == 4) 
-    word_t size = BDR_OFF + WORD_SIZE;
+    word_t size = BDR_OFF + 2*WORD_SIZE;
     heap_base = mem_sbrk(size);
     if (heap_base == NULL) return -1;
     for (int i = 0; i < RANK_NUM; ++i) SET(BUCK(i), BDR_OFF);
